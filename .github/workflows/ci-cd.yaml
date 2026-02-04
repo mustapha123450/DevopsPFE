@@ -78,11 +78,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Configure kubectl
-        uses: azure/k8s-set-context@v3
-        with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+      - name: Check Minikube status
+        run: |
+          minikube status
+          kubectl cluster-info
       - name: Deploy to Kubernetes
         run: |
           kubectl set image deployment/rest-api-deployment rest-api=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.DOCKER_IMAGE }}:main-${{ github.sha }} -n ${{ env.K8S_NAMESPACE }}
