@@ -1,12 +1,13 @@
 const express = require('express');
 const { Pool } = require('pg');
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Database connection - only if not testing
+// Database connection
 let pool;
+let dbConnected = false;
 
 if (process.env.NODE_ENV !== 'test') {
   pool = new Pool({
@@ -17,45 +18,67 @@ if (process.env.NODE_ENV !== 'test') {
     password: process.env.DB_PASSWORD || 'postgres'
   });
 
-  // Initialize database table
-  pool.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(100),
-      email VARCHAR(100)
-    )
-  `).catch(err => console.error('Table creation error:', err));
+  // Test connection and create table
+  pool.query('SELECT NOW()')
+    .then(() => {
+      console.log('✅ Connected to PostgreSQL database');
+      dbConnected = true;
+      
+      // Create table if not exists
+      return pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          email VARCHAR(100) UNIQUE NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    })
+    .then(() => {
+      console.log('✅ Table users ready');
+    })
+    .catch(err => {
+      console.error('❌ Database connection error:', err.message);
+      console.log('⚠️  Server will run without database (test mode)');
+      dbConnected = false;
+    });
 }
 
-// In-memory storage for tests ONLY
+// In-memory storage for test mode
 const testUsers = {};
 let testIdCounter = 1;
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    database: dbConnected ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // GET - Retrieve all users
 app.get('/api/users', async (req, res) => {
-  if (!pool) {
-    // Mode test: retourner les utilisateurs en mémoire
-    res.json(Object.values(testUsers));
-    return;
+  if (!pool || !dbConnected) {
+    return res.json(Object.values(testUsers));
   }
   try {
-    const result = await pool.query('SELECT * FROM users');
+    const result = await pool.query('SELECT * FROM users ORDER BY id');
     res.json(result.rows);
   } catch (err) {
+    console.error('Error fetching users:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // GET - Retrieve a specific user
 app.get('/api/users/:id', async (req, res) => {
-  if (!pool) {
-    // Mode test
+  if (!pool || !dbConnected) {
     const user = testUsers[req.params.id];
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.json(user);
-    return;
+    return res.json(user);
   }
   try {
     const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
@@ -64,48 +87,55 @@ app.get('/api/users/:id', async (req, res) => {
     }
     res.json(result.rows[0]);
   } catch (err) {
+    console.error('Error fetching user:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // POST - Create a new user
 app.post('/api/users', async (req, res) => {
-  if (!pool) {
-    // Mode test
-    const { name, email } = req.body;
+  const { name, email } = req.body;
+  
+  if (!name || !email) {
+    return res.status(400).json({ error: 'Name and email are required' });
+  }
+
+  if (!pool || !dbConnected) {
     const id = testIdCounter++;
     const newUser = { id, name, email };
     testUsers[id] = newUser;
-    res.status(201).json(newUser);
-    return;
+    return res.status(201).json(newUser);
   }
+  
   try {
-    const { name, email } = req.body;
     const result = await pool.query(
       'INSERT INTO users (name, email) VALUES ($1, $2) RETURNING *',
       [name, email]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    console.error('Error creating user:', err);
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Email already exists' });
+    }
     res.status(500).json({ error: err.message });
   }
 });
 
 // PUT - Update a user
 app.put('/api/users/:id', async (req, res) => {
-  if (!pool) {
-    // Mode test
-    const { name, email } = req.body;
+  const { name, email } = req.body;
+  
+  if (!pool || !dbConnected) {
     if (!testUsers[req.params.id]) {
       return res.status(404).json({ message: 'User not found' });
     }
     const updatedUser = { id: parseInt(req.params.id), name, email };
     testUsers[req.params.id] = updatedUser;
-    res.json(updatedUser);
-    return;
+    return res.json(updatedUser);
   }
+  
   try {
-    const { name, email } = req.body;
     const result = await pool.query(
       'UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING *',
       [name, email, req.params.id]
@@ -115,21 +145,21 @@ app.put('/api/users/:id', async (req, res) => {
     }
     res.json(result.rows[0]);
   } catch (err) {
+    console.error('Error updating user:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // DELETE - Remove a user
 app.delete('/api/users/:id', async (req, res) => {
-  if (!pool) {
-    // Mode test
+  if (!pool || !dbConnected) {
     if (!testUsers[req.params.id]) {
       return res.status(404).json({ message: 'User not found' });
     }
     delete testUsers[req.params.id];
-    res.status(204).send();
-    return;
+    return res.status(204).send();
   }
+  
   try {
     const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [req.params.id]);
     if (result.rows.length === 0) {
@@ -137,6 +167,7 @@ app.delete('/api/users/:id', async (req, res) => {
     }
     res.status(204).send();
   } catch (err) {
+    console.error('Error deleting user:', err);
     res.status(500).json({ error: err.message });
   }
 });
