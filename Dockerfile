@@ -30,12 +30,12 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm install --production && \
+RUN npm ci --omit=dev && \
     npm cache clean --force
 
 # Copy application from builder
-COPY --from=builder --chown=nodejs:nodejs /app/src ./src
 COPY --from=builder --chown=nodejs:nodejs /app/server.js ./
+COPY --from=builder --chown=nodejs:nodejs /app/test ./test
 
 # Switch to non-root user
 USER nodejs
