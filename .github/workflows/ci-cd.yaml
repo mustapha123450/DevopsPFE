@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main , develop ]
+    branches: [ main, develop ]
 
 env:
   DOCKER_IMAGE: my-rest-api
@@ -91,6 +91,7 @@ jobs:
         run: |
           kubectl get pods -n ${{ env.K8S_NAMESPACE }}
           kubectl get services -n ${{ env.K8S_NAMESPACE }}
+
   notify:
     needs: [test, build, deploy]
     runs-on: ubuntu-latest
