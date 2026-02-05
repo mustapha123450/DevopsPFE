@@ -52,22 +52,15 @@ jobs:
           registry: ${{ env.DOCKER_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.DOCKER_IMAGE }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=semver,pattern={{version}}
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          # ✅ TAGS SIMPLIFIÉS ET CLAIRS
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/devopspfe/${{ env.DOCKER_IMAGE }}:latest
+            ${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/devopspfe/${{ env.DOCKER_IMAGE }}:main
           cache-from: type=gha
           cache-to: type=gha,mode=max
  
@@ -79,19 +72,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Verify Minikube
+        shell: powershell
         run: |
           minikube status
           kubectl cluster-info
       - name: Deploy to Kubernetes
+        shell: powershell
         run: |
-          kubectl set image deployment/rest-api-deployment rest-api=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.DOCKER_IMAGE }}:main -n ${{ env.K8S_NAMESPACE }}
+          # ✅ UTILISEZ LE MÊME PATH QUE DANS LE BUILD
+          kubectl set image deployment/rest-api-deployment `
+            rest-api=${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/devopspfe/${{ env.DOCKER_IMAGE }}:latest `
+            -n ${{ env.K8S_NAMESPACE }}
           kubectl rollout status deployment/rest-api-deployment -n ${{ env.K8S_NAMESPACE }} --timeout=15m
       - name: Verify deployment
+        shell: powershell
         run: |
           kubectl get pods -n ${{ env.K8S_NAMESPACE }}
           kubectl get services -n ${{ env.K8S_NAMESPACE }}
           kubectl describe deployment rest-api-deployment -n ${{ env.K8S_NAMESPACE }}
-
 
   notify:
     needs: [test, build, deploy]
@@ -100,4 +98,4 @@ jobs:
     steps:
       - name: Send notification
         run: |
-          echo "Deployment completed!"
+          echo "✅ Deployment completed!"
