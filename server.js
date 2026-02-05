@@ -58,6 +58,14 @@ app.get('/health', (req, res) => {
   });
 });
 
+// ✅ AJOUTEZ CETTE ROUTE
+app.get('/ready', (req, res) => {
+  res.status(200).json({
+    status: 'ready',
+    database: dbConnected ? 'connected' : 'disconnected'
+  });
+});
+
 // GET - Retrieve all users
 app.get('/api/users', async (req, res) => {
   if (!pool || !dbConnected) {
@@ -71,7 +79,18 @@ app.get('/api/users', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+app.get('/ready', (req, res) => {
+  if (!dbConnected) {
+    return res.status(503).json({ 
+      status: 'not ready',
+      message: 'Database not connected'
+    });
+  }
+  res.status(200).json({ 
+    status: 'ready',
+    database: 'connected'
+  });
+});
 // GET - Retrieve a specific user
 app.get('/api/users/:id', async (req, res) => {
   if (!pool || !dbConnected) {
