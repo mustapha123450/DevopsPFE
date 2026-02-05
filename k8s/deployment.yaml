@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rest-api-deployment
+  namespace: production
   labels:
     app: rest-api
 spec:
@@ -16,12 +17,31 @@ spec:
     spec:
       containers:
       - name: rest-api
-        envFrom:
-        - configMapRef:
-            name: app-config
+        image: ghcr.io/mustapha123450/devopspfe/my-rest-api:main
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
         env:
+        - name: DB_HOST
+          value: "postgres-service"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: "mydb"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: username
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: db-secret
               key: password
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
