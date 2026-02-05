@@ -57,10 +57,10 @@ jobs:
         with:
           context: .
           push: true
-          # ✅ TAGS SIMPLIFIÉS ET CLAIRS
+          # ✅ NOM REPO EN MINUSCULES (DevopsPFE → devopspfe)
           tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/devopspfe/${{ env.DOCKER_IMAGE }}:${{ github.sha }}
             ${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/devopspfe/${{ env.DOCKER_IMAGE }}:latest
-            ${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/devopspfe/${{ env.DOCKER_IMAGE }}:main
           cache-from: type=gha
           cache-to: type=gha,mode=max
  
@@ -79,9 +79,8 @@ jobs:
       - name: Deploy to Kubernetes
         shell: powershell
         run: |
-          # ✅ UTILISEZ LE MÊME PATH QUE DANS LE BUILD
           kubectl set image deployment/rest-api-deployment `
-            rest-api=${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/devopspfe/${{ env.DOCKER_IMAGE }}:latest `
+            rest-api=${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/devopspfe/${{ env.DOCKER_IMAGE }}:${{ github.sha }} `
             -n ${{ env.K8S_NAMESPACE }}
           kubectl rollout status deployment/rest-api-deployment -n ${{ env.K8S_NAMESPACE }} --timeout=15m
       - name: Verify deployment
