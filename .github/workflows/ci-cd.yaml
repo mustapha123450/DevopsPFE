@@ -70,7 +70,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
+ 
   deploy:
     needs: build
     runs-on: self-hosted
@@ -78,14 +78,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Check Minikube status
+      - name: Verify Minikube
         run: |
           minikube status
           kubectl cluster-info
+      - name: Patch progress deadline
+        run: |
+          kubectl patch deployment rest-api-deployment -n ${{ env.K8S_NAMESPACE }} -p '{"spec":{"progressDeadlineSeconds":1200}}' || true
       - name: Deploy to Kubernetes
         run: |
           kubectl set image deployment/rest-api-deployment rest-api=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.DOCKER_IMAGE }}:main-${{ github.sha }} -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout status deployment/rest-api-deployment -n ${{ env.K8S_NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/rest-api-deployment -n ${{ env.K8S_NAMESPACE }} --timeout=10m
       - name: Verify deployment
         run: |
           kubectl get pods -n ${{ env.K8S_NAMESPACE }}
