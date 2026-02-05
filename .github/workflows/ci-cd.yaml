@@ -85,11 +85,12 @@ jobs:
       - name: Deploy to Kubernetes
         run: |
           kubectl set image deployment/rest-api-deployment rest-api=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.DOCKER_IMAGE }}:main-${{ github.sha }} -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout status deployment/rest-api-deployment -n ${{ env.K8S_NAMESPACE }}
+          kubectl rollout status deployment/rest-api-deployment -n ${{ env.K8S_NAMESPACE }} --timeout=5m
       - name: Verify deployment
         run: |
           kubectl get pods -n ${{ env.K8S_NAMESPACE }}
           kubectl get services -n ${{ env.K8S_NAMESPACE }}
+          kubectl describe deployment rest-api-deployment -n ${{ env.K8S_NAMESPACE }}
 
   notify:
     needs: [test, build, deploy]
