@@ -84,7 +84,8 @@ jobs:
           kubectl cluster-info
       - name: Patch progress deadline
         run: |
-          kubectl patch deployment rest-api-deployment -n ${{ env.K8S_NAMESPACE }} -p '{"spec":{"progressDeadlineSeconds":1200}}' || true
+          kubectl patch deployment rest-api-deployment -n ${{ env.K8S_NAMESPACE }} -p '{"spec":{"progressDeadlineSeconds":1200}}'
+        continue-on-error: true
       - name: Deploy to Kubernetes
         run: |
           kubectl set image deployment/rest-api-deployment rest-api=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.DOCKER_IMAGE }}:main-${{ github.sha }} -n ${{ env.K8S_NAMESPACE }}
