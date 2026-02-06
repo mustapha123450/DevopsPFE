@@ -2,7 +2,7 @@
 
 ## 📋 Description du Projet
 
-Ce projet est une **REST API Node.js** déployée automatiquement sur **Kubernetes** via un pipeline **CI/CD complet** utilisant **GitHub Actions** et un **self-hosted runner**.
+Ce projet est un **REST API Node.js** déployé automatiquement sur **Kubernetes** via un pipeline **CI/CD complet** utilisant **GitHub Actions** et un **self-hosted runner**.
 
 L'objectif est de démontrer une architecture **DevOps moderne** avec :
 - ✅ Intégration Continue (CI)
